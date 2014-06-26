@@ -1,0 +1,16 @@
+#!/bin/sh
+
+upstream_url=$(git config --get remote.origin.url)
+user_name=$(git config user.name)
+origin_url=$(echo $upstream_url | sed -e "s/\(github.com[:/]\).*\//\1$user_name\//")
+
+if [ $upstream_url == $origin_url ] ; then
+  echo 'Still own this repository as "origin"'
+  exit 0
+fi
+
+git remote add upstream $upstream_url
+git remote set-url origin $origin_url
+
+exit 0
+
