@@ -1,11 +1,25 @@
-#!/bin/sh
+#!/bin/bash
+
+verbose=false
+while getopts v OPT
+do
+    case $OPT in
+        v) verbose=true
+           break
+           ;;
+        *) break
+           ;;
+    esac
+done
 
 upstream_url=$(git config --get remote.origin.url)
 user_name=$(git config user.name)
 origin_url=$(echo $upstream_url | sed -e "s/\(github.com[:/]\).*\//\1$user_name\//")
 
 if [ $upstream_url == $origin_url ] ; then
-  echo 'Still own this repository as "origin"'
+  if [ $verbose == true ] ; then
+    echo -e "\033[0;33m[INFO] Not changed (still own as \"origin\", or not GitHub repos) \033[m"
+  fi
   exit 0
 fi
 
