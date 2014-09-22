@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require "tempfile"
+require "gemoji"
+
+def get_git_log
+  log = `git --no-pager log --color`
+  if $?.exitstatus > 0
+    exit $?.exitstatus
+  end
+
+  log
+end
+
+def get_pager_env
+  pager = `git config core.pager`
+  if pager.empty?
+    pager = 'less -r'
+  end
+  return pager
+end
+
+def replace_to_emoji (git_log)
+  log = ''
+  git_log.each_line do |line|
+    if not line.match(/^(?:Author:|Date:|Merge:)/)
+      line.gsub! (/:([^\s]+?):/) {
+        replaced =''
+        target_str = "#{$1}"
+        begin
+          replaced = Emoji.find_by_alias(target_str).raw
+        rescue
+          replaced = ":#{target_str}:"
+        end
+
+        replaced
+      }
+    end
+
+    log << line
+  end
+  log
+end
+
+def main
+  log   = replace_to_emoji(get_git_log)
+  pager = get_pager_env
+
+  tmpfile = Tempfile.open('')
+  begin
+    tmpfile.write(log)
+    system("cat #{tmpfile.path} | #{pager}")
+  ensure
+    tmpfile.close
+  end
+end
+
+main
+
