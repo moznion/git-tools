@@ -1,0 +1,93 @@
+#!/usr/bin/env ruby
+
+# Usage
+#
+#   git reviewer <from branch>
+#   git reviewer <into branch> <from branch>
+#
+
+if ARGV.length < 1 then
+  $stderr.puts 'Missing mandatory parameter(s)'
+  exit(1)
+end
+
+into = ""
+from = ARGV[1]
+if ARGV.length == 1 then
+  into = `git --no-pager log --pretty=oneline`.split(/\r?\n/)[0].split(/ /)[0] # current revision
+  from = ARGV[0]
+end
+
+diff = `git --no-pager diff #{into} #{ARGV.join(' ')}`
+
+row_number = 0
+file_diff_map = {}
+current_file = ''
+
+diff.each_line do |line|
+  if (line.match(%r!\A--- a?/(.+)\Z!)) then
+    current_file = $1
+    file_diff_map[current_file] = []
+    next
+  end
+
+  if (line.match(/\A@@ -([0-9]+),/)) then
+    row_number = $1.to_i
+    next
+  end
+
+  if (line.match(/\A\+/)) then
+    # ignore
+    next
+  end
+
+  if (line.match(/\A-/)) then
+    file_diff_map[current_file].push(row_number)
+    row_number = row_number + 1
+    next
+  end
+
+  row_number = row_number + 1
+end
+
+oldest_commit = `git --no-pager log --pretty=oneline ..#{from}`.split(/\r?\n/)[-1].split(/ /)[0]
+
+reviewer_candidates = {}
+authors = {}
+
+file_diff_map.each do |file, row_numbers|
+  if row_numbers.empty? then
+    # when no any deleted line
+    if file == 'dev/null' then
+      next
+    end
+
+    `git blame #{oldest_commit}^ -- #{file}`.each_line do |line|
+      if line =~/\((.+) [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [+\-][0-9]{4} [0-9]+\)/ then
+        if authors.key?($1) then
+          authors[$1] = authors[$1] + 1
+        else
+          authors[$1] = 1
+        end
+      end
+    end
+
+    next
+  end
+
+  row_numbers.each do |num|
+    blame = `git blame -L#{num},#{num} #{oldest_commit}^ -- #{file}`
+    if blame =~ /\((.+) [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [+\-][0-9]{4} [0-9]+\)/ then
+      if reviewer_candidates.key?($1) then
+        reviewer_candidates[$1] = reviewer_candidates[$1] + 1
+      else
+        reviewer_candidates[$1] = 1
+      end
+    end
+  end
+end
+
+(reviewer_candidates.empty? ? authors : reviewer_candidates).sort {|(_, occur1), (_, occur2)| occur2 <=> occur1}.each do |author, occur|
+  puts "#{occur}: #{author}"
+end
+
