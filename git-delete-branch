@@ -1,0 +1,4 @@
+#!/bin/bash
+
+git branch | grep $1 | xargs git br -d
+
