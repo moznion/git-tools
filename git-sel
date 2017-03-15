@@ -1,0 +1,11 @@
+#!/bin/bash
+
+FILE=$(git status --short | peco | awk '{print $2}')
+
+if [ $# -eq 0 ]; then
+  echo $FILE
+  exit 0
+fi
+
+git $@ $FILE
+
