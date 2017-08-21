@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+  echo 'Error: specify upstream'
+  exit 1
+fi
+
+git push $1 $(git rev-parse --abbrev-ref HEAD)
+
